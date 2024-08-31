@@ -39,3 +39,22 @@ This repository contains the backend code for an Indian Sign Language (ISL) lear
    git clone https://github.com/yourusername/isl-learning-tool.git
    cd isl-learning-tool
 
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+3. **Set up the database**:
+   - Create a PostgreSQL database.
+   - Update the database connection details in the `config.py` file.
+4. **Run the application**:
+   ```bash
+   uvicorn main:app --reload
+5. **Access the application**:
+   - Open your web browser and navigate to `http://localhost:8000` to access the application.
+6. **Admin Routes**:
+   - To access admin routes, use the following credentials:
+   - Username: admin
+   - Password: admin
+7. **User Routes**:
+   - To access user routes, use the following credentials:
+   - Username: user
+   - Password: user
