@@ -1,0 +1,175 @@
+from sqlalchemy import DateTime, Table, Column, Integer, String, Boolean, ForeignKey, Text, func
+from sqlalchemy.orm import relationship  # Import the relationship function from SQLAlchemy
+from database import Base
+
+# Association Table for Many-to-Many relationship between Post and Tag
+post_tags = Table(
+    'post_tags',
+    Base.metadata,
+    Column('post_id', Integer, ForeignKey('posts.id', ondelete='CASCADE'), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True)
+)
+
+# Association Table for Many-to-Many relationship between User and Post (Likes)
+post_likes = Table(
+    'post_likes',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('User.id', ondelete='CASCADE'), primary_key=True),
+    Column('post_id',      Integer, ForeignKey('posts.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', DateTime(timezone=True), server_default=func.now())
+)
+
+class User(Base):
+    __tablename__ = 'User'
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    role = Column(String(20), default='user')  # Possible values: 'user', 'admin'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    posts = relationship('Post', back_populates='author')
+    comments = relationship('Comment', back_populates='author')
+    liked_posts = relationship('Post', secondary=post_likes, back_populates='likes')
+
+class Post(Base):
+    __tablename__ = 'posts'
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    is_published = Column(Boolean, default=False)
+    author_id = Column(Integer, ForeignKey('User.id', ondelete='CASCADE'))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    author = relationship('User', back_populates='posts')
+    comments = relationship('Comment', back_populates='post', cascade='all, delete-orphan')
+    tags = relationship('Tag', secondary=post_tags, back_populates='posts')
+    likes = relationship('User', secondary=post_likes, back_populates='liked_posts')
+
+class Comment(Base):
+    __tablename__ = 'comments'
+
+    id = Column(Integer, primary_key=True, index=True)
+    content = Column(Text, nullable=False)
+    post_id = Column(Integer, ForeignKey('posts.id', ondelete='CASCADE'))
+    author_id = Column(Integer, ForeignKey('User.id', ondelete='CASCADE'))
+    is_moderated = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    post = relationship('Post', back_populates='comments')
+    author = relationship('User', back_populates='comments')
+
+class Tag(Base):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True, nullable=False)
+
+    posts = relationship('Post', secondary=post_tags, back_populates='tags')
+
+
+
+
+######################################################
+
+from datetime import datetime, timedelta, timezone
+from .db_conn import Base
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, Float
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+
+
+
+### 1. User Model
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    full_name = Column(String, nullable=False)  # New required field for full name
+    hashed_password = Column(String, nullable=False)
+    role = Column(String(10), default="user")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    progress = relationship("Progress", back_populates="user")
+    badges = relationship("UserBadge", back_populates="user")
+    translations = relationship("Translation", back_populates="user")
+
+# Other models remain unchanged...
+
+### 2. LearningResource Model
+class LearningResource(Base):
+    __tablename__ = 'learning_resources'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    content_url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    progress = relationship("Progress", back_populates="learning_resource")
+
+### 3. Progress Model
+class Progress(Base):
+    __tablename__ = 'progress'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    resource_id = Column(Integer, ForeignKey('learning_resources.id'), nullable=False)
+    status = Column(String, default="in progress")  # Possible values: "completed", "in progress"
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="progress")
+    learning_resource = relationship("LearningResource", back_populates="progress")
+
+### 4. Badge Model
+class Badge(Base):
+    __tablename__ = 'badges'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(Text)
+
+    # Relationships
+    users = relationship("UserBadge", back_populates="badge")
+
+### 5. UserBadge Model
+class UserBadge(Base):
+    __tablename__ = 'user_badges'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    badge_id = Column(Integer, ForeignKey('badges.id'), nullable=False)
+    awarded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="badges")
+    badge = relationship("Badge", back_populates="users")
+
+### 6. Translation Model
+class Translation(Base):
+    __tablename__ = 'translations'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    word = Column(String, nullable=False)
+    confidence = Column(Float, nullable=False)
+    image_url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", back_populates="translations")
